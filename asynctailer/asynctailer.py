@@ -26,6 +26,10 @@ class _AsyncTailerFollowThread(AsyncThreadWithExecutor):
             else:
                 self.queue.sync_q.put(data)
 
+    async def stop(self):
+        self.asynctailer.close()
+        await super().stop()
+
     async def __aiter__(self):
         while self.running:
             yield await self.queue.async_q.get()
