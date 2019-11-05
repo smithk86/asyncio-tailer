@@ -47,9 +47,12 @@ class AsyncTailer(object):
         return await loop.run_in_executor(self.executor, func)
 
     async def follow(self, delay=1.0):
-        async with _AsyncTailerFollowThread(self, delay=delay) as follower:
+        async with self.async_follow_thread(delay=delay) as follower:
             async for line in follower:
                 yield line
+
+    def async_follow_thread(self, delay=1.0):
+        return _AsyncTailerFollowThread(self, delay=delay)
 
     def close(self):
         self.tailer.file.close()
