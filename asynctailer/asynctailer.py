@@ -1,19 +1,31 @@
 import asyncio
+import logging
+from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
 import janus
 from tailer import Tailer
 
-from .async_thread import AsyncThreadWithExecutor
+from .async_task_service import AsyncTaskService
 
 
-class _AsyncTailerFollowThread(AsyncThreadWithExecutor):
+logger = logging.getLogger(__name__)
+
+
+class _AsyncTailerFollowThread(AsyncTaskService):
     def __init__(self, asynctailer, delay):
-        super().__init__(executor=asynctailer.executor)
+        super().__init__(name='_AsyncTailerFollowThread')
         self.queue = janus.Queue()
         self.asynctailer = asynctailer
         self.delay = delay
+
+    def start(self):
+        """ override start() to execute the non-async run() in an executor """
+        loop = asyncio.get_running_loop()
+        logger.info(f'starting service: {self.name}')
+        self._task = loop.run_in_executor(self.asynctailer.executor, self.run)
+        return self._task
 
     def run(self):
         iter_ = self.asynctailer.tailer.follow(delay=self.delay)
@@ -36,9 +48,9 @@ class _AsyncTailerFollowThread(AsyncThreadWithExecutor):
 
 
 class AsyncTailer(object):
-    def __init__(self, file, read_size=1024, end=False, executor_max_workers=None):
+    def __init__(self, file, read_size=1024, end=False, max_workers=None):
         self.tailer = Tailer(file, read_size, end)
-        self.executor = ThreadPoolExecutor(max_workers=executor_max_workers)
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     async def tail(self, lines=10):
         loop = asyncio.get_running_loop()
