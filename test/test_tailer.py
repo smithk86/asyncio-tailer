@@ -12,7 +12,7 @@ from functools import partial
 import pytest
 from async_timeout import timeout
 
-from asynctailer import AsyncTailer
+from asyncio_tailer import Tailer
 
 
 dir_ = Path(os.path.dirname(os.path.abspath(__file__)))
@@ -24,14 +24,14 @@ sample_lines = ['Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praese
 async def test_head():
     # test head() with lines=2
     with open(sample_file, 'r') as fh:
-        tailer = AsyncTailer(fh)
+        tailer = Tailer(fh)
         lines = await tailer.head(2)
         assert len(lines) == 3
         for i, line in enumerate(lines):
             assert line == sample_lines[i]
     # test head() with lines=10
     with open(sample_file, 'r') as fh:
-        tailer = AsyncTailer(fh)
+        tailer = Tailer(fh)
         lines = await tailer.head(10)
         assert len(lines) == 9
         for i, line in enumerate(lines):
@@ -43,7 +43,7 @@ async def test_tail():
     # test tail() with lines=2
     tailed_sample_lines = sample_lines[-2:]
     with open(sample_file, 'r') as fh:
-        tailer = AsyncTailer(fh)
+        tailer = Tailer(fh)
         lines = await tailer.tail(2)
         assert len(lines) == 2
         for i, line in enumerate(lines):
@@ -51,14 +51,14 @@ async def test_tail():
     # test tail() with lines=5
     tailed_sample_lines = sample_lines[-5:]
     with open(sample_file, 'r') as fh:
-        tailer = AsyncTailer(fh)
+        tailer = Tailer(fh)
         lines = await tailer.tail(5)
         assert len(lines) == 5
         for i, line in enumerate(lines):
             assert line == tailed_sample_lines[i]
     # test tail() with lines=10
     with open(sample_file, 'r') as fh:
-        tailer = AsyncTailer(fh)
+        tailer = Tailer(fh)
         lines = await tailer.tail(10)
         assert len(lines) == 9
         for i, line in enumerate(lines):
@@ -84,7 +84,7 @@ async def test_follow():
         try:
             async with timeout(4) as t:
                 with open(output_file, 'r') as fh:
-                    async for line in AsyncTailer(fh).follow():
+                    async for line in Tailer(fh).follow():
                         if len(line) > 0:
                             assert line == next(sample_lines_iter)
         except asyncio.TimeoutError:

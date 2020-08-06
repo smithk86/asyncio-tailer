@@ -5,15 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
 import janus
-from tailer import Tailer
-
-from .async_task_service import AsyncTaskService
+from asyncio_service import AsyncioService
+from tailer import Tailer as SyncTailer
 
 
 logger = logging.getLogger(__name__)
 
 
-class _AsyncTailerFollowThread(AsyncTaskService):
+class _FollowThread(AsyncioService):
     def __init__(self, asynctailer, delay):
         super().__init__(name='_AsyncTailerFollowThread')
         self.queue = janus.Queue()
@@ -47,9 +46,9 @@ class _AsyncTailerFollowThread(AsyncTaskService):
             yield await self.queue.async_q.get()
 
 
-class AsyncTailer(object):
+class Tailer(object):
     def __init__(self, file, read_size=1024, end=False, max_workers=None):
-        self.tailer = Tailer(file, read_size, end)
+        self.tailer = SyncTailer(file, read_size, end)
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     async def tail(self, lines=10):
@@ -68,7 +67,7 @@ class AsyncTailer(object):
                 yield line
 
     def async_follow_thread(self, delay=1.0):
-        return _AsyncTailerFollowThread(self, delay=delay)
+        return _FollowThread(self, delay=delay)
 
     def close(self):
         self.tailer.file.close()
