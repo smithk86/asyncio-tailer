@@ -16,7 +16,6 @@ with open(f'{dir_}/asyncio_tailer/__init__.py') as fh:
 setup(
     name='asyncio-tailer',
     version=__VERSION__,
-    license='MIT',
     author='Kyle Smith',
     author_email='smithk86@gmail.com',
     description='Asyncio wrapper for pytailer (https://github.com/six8/pytailer)',
