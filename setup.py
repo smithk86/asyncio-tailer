@@ -19,11 +19,21 @@ setup(
     license='MIT',
     author='Kyle Smith',
     author_email='smithk86@gmail.com',
+    description='Asyncio wrapper for pytailer (https://github.com/six8/pytailer)',
     url='https://github.com/smithk86/asyncio-tailer',
     packages=['asyncio_tailer'],
+    license='MIT',
     install_requires=[
         'asyncio-service',
         'tailer',
         'janus',
-    ]
+    ],
+    python_requires='>=3.7',
+    classifiers=(
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Operating System :: OS Independent",
+        "Framework :: AsyncIO",
+    )
 )
