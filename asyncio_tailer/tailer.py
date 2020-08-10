@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class _FollowThread(AsyncioService):
     def __init__(self, asynctailer, delay):
-        super().__init__(name='_FollowThread')
+        super().__init__(name='Tailer->FollowThread')
         self.queue = janus.Queue()
         self.asynctailer = asynctailer
         self.delay = delay
