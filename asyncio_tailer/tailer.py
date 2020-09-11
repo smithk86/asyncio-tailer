@@ -50,8 +50,6 @@ class _FollowThread(AsyncioService):
             self.exception = e
         finally:
             self._running = False
-            logger.debug(f'closing service: {self.name}')
-            await self.close()
             logger.debug(f'service has stopped: {self.name}')
 
     async def __aiter__(self):
