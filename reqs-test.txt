@@ -1,5 +1,4 @@
-async-timeout==3.0.1
-asyncio-service @ git+https://github.com/smithk86/asyncio-service@918aefb857ceb1fc2eebf2b4f9e41b591b9629fb
+asyncio-service @ git+https://github.com/smithk86/asyncio-service@331b2e14bd94ee1d17adf36b57562360f85fd555
 attrs==19.3.0
 importlib-metadata==1.7.0
 iniconfig==1.0.1
