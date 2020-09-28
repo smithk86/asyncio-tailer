@@ -65,7 +65,7 @@ class _FollowThread(AsyncioService):
 
 
 class Tailer(PyTailer):
-    def __init__(self, file: TextIOBase, read_size: int=1024, end: bool=False, executor: ThreadPoolExecutor=None):
+    def __init__(self, file: TextIOBase, read_size: int = 1024, end: bool = False, executor: ThreadPoolExecutor = None):
         super().__init__(file, read_size=read_size, end=end)
         self.executor = executor
 
