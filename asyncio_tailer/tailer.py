@@ -79,9 +79,13 @@ class Tailer(PyTailer):
         func = partial(super().head, lines=lines)
         return await loop.run_in_executor(self.executor, func)
 
-    async def follow(self, delay=1.0):
-        async for line in self.async_follow_thread(delay=delay):
-            yield line
+    async def follow(self, delay=1.0, follow_thread=None):
+        if follow_thread is None:
+            async for line in self.async_follow_thread(delay=delay):
+                yield line
+        else:
+            async for line in follow_thread:
+                yield line
 
     def async_follow_thread(self, delay=1.0):
         return _FollowThread(self, delay=delay)
