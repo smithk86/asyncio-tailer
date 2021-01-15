@@ -41,10 +41,9 @@ class _FollowThread(AsyncioService):
         await super().stop()
 
     async def run_wrapper(self):
-        loop = asyncio.get_running_loop()
         self._running = True
         try:
-            await loop.run_in_executor(self.asynctailer.executor, self.run)
+            await self.asynctailer.loop.run_in_executor(self.asynctailer.executor, self.run)
         except Exception as e:
             logger.exception(e)
             self.exception = e
@@ -54,8 +53,7 @@ class _FollowThread(AsyncioService):
 
     async def __aiter__(self):
         async with self:
-            while self.running() is not True:
-                await asyncio.sleep(.01)
+            await self.wait_for_running()
             while self.running():
                 data = await self.queue.async_q.get()
                 if data is StopIteration:
@@ -68,27 +66,49 @@ class Tailer(PyTailer):
     def __init__(self, file: TextIOBase, read_size: int = 1024, end: bool = False, executor: ThreadPoolExecutor = None):
         super().__init__(file, read_size=read_size, end=end)
         self.executor = executor
+        self.follow_thread = None
+
+    @property
+    def loop(self):
+        return asyncio.get_running_loop()
 
     async def tail(self, lines=10):
-        loop = asyncio.get_running_loop()
         func = partial(super().tail, lines=lines)
-        return await loop.run_in_executor(self.executor, func)
+        return await self.loop.run_in_executor(self.executor, func)
 
     async def head(self, lines=10):
-        loop = asyncio.get_running_loop()
         func = partial(super().head, lines=lines)
-        return await loop.run_in_executor(self.executor, func)
+        return await self.loop.run_in_executor(self.executor, func)
 
-    async def follow(self, delay=1.0, follow_thread=None):
-        if follow_thread is None:
-            async for line in self.async_follow_thread(delay=delay):
+    async def follow(self, delay=1.0):
+        if self.follow_thread is None:
+            self.follow_thread = _FollowThread(self, delay=delay)
+
+        try:
+            async for line in self.follow_thread:
                 yield line
+        finally:
+            self.follow_thread = None
+
+    async def start_follow_thread(self, delay=1.0):
+        if self.follow_thread is not None:
+            raise RuntimeError('an instance of _FollowThread is already active')
+
+        self.follow_thread = _FollowThread(self, delay=delay)
+        self.follow_thread.start()
+        await self.follow_thread.wait_for_running()
+
+    async def stop_follow_thread(self):
+        if self.follow_thread:
+            await self.follow_thread.stop()
+            self.follow_thread = None
+
+    @property
+    def follow_queue(self):
+        if self.follow_thread:
+            return self.follow_thread.queue.async_q
         else:
-            async for line in follow_thread:
-                yield line
-
-    def async_follow_thread(self, delay=1.0):
-        return _FollowThread(self, delay=delay)
+            return None
 
     @staticmethod
     def follow_threads():
