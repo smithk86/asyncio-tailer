@@ -16,7 +16,8 @@ class _FollowThread(AsyncioService):
     threads = list()
 
     def __init__(self, asynctailer, delay):
-        super().__init__(name='Tailer->FollowThread')
+        filename = asynctailer.file.name
+        super().__init__(name=f'Tailer->FollowThread [file={filename}]')
         self.queue = janus.Queue()
         self.asynctailer = asynctailer
         self.follow_generator = PyTailer.follow(self.asynctailer, delay=delay)
@@ -50,6 +51,11 @@ class _FollowThread(AsyncioService):
         finally:
             self._running = False
             logger.debug(f'service has stopped: {self.name}')
+
+            if self in AsyncioService._running_services:
+                AsyncioService._running_services.remove(self)
+            else:
+                logger.warning('this service was not found in AsyncioService._running_services [name={self.name}]')
 
     async def __aiter__(self):
         async with self:
