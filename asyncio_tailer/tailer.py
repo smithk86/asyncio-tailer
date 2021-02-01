@@ -6,6 +6,7 @@ from io import TextIOBase
 
 import janus
 from asyncio_service import AsyncioService
+from asyncio_service.service import now
 from tailer import Tailer as PyTailer
 
 
@@ -42,14 +43,16 @@ class _FollowThread(AsyncioService):
         await super().stop()
 
     async def run_wrapper(self):
-        self._running = True
+        self.start_date = now()
         try:
             await self.asynctailer.loop.run_in_executor(self.asynctailer.executor, self.run)
         except Exception as e:
             logger.exception(e)
             self.exception = e
         finally:
-            self._running = False
+            self.end_date = now()
+            logger.debug(f'closing service: {self.name}')
+            await self.cleanup()
             logger.debug(f'service has stopped: {self.name}')
 
             if self in AsyncioService._running_services:
