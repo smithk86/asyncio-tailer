@@ -2,7 +2,7 @@
 
 import os.path
 
-from setuptools import setup
+from setuptools import setup  # type: ignore
 
 
 dir_ = os.path.abspath(os.path.dirname(__file__))
@@ -15,7 +15,7 @@ with open(f'{dir_}/asyncio_tailer/__init__.py') as fh:
 
 setup(
     name='asyncio-tailer',
-    version=__VERSION__,
+    version=__VERSION__,  # type: ignore
     author='Kyle Smith',
     author_email='smithk86@gmail.com',
     description='Asyncio wrapper for pytailer (https://github.com/six8/pytailer)',

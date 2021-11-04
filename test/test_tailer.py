@@ -1,19 +1,16 @@
-# add the project directory to the pythonpath
-import os.path
-import sys
-from pathlib import Path
-dir_ = Path(os.path.dirname(os.path.realpath(__file__)))
-sys.path.insert(0, str(dir_.parent))
+import _path_patch
 
 import asyncio
 import time
+import os.path
+from pathlib import Path
 
 import pytest
 
 from asyncio_tailer import Tailer
+from _path_patch import dir_
 
 
-dir_ = Path(os.path.dirname(os.path.abspath(__file__)))
 sample_file = os.path.join(dir_, 'data', 'sample.txt')
 sample_lines = [
     'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent non elit at elit ultricies condimentum sed at ipsum. Nunc posuere sapien eget ex aliquet, ac mollis libero sollicitudin. Sed cursus lectus dui, nec rhoncus urna lobortis id. Etiam gravida sagittis est id tincidunt. Mauris a cursus metus. Maecenas feugiat nunc at rhoncus blandit. Mauris felis elit, pellentesque eget lobortis id, blandit quis dolor.',
@@ -87,9 +84,8 @@ async def test_follow(event_loop):
         func()
 
     sample_lines_iter = iter([line for line in sample_lines if len(line) > 0])
-
+    output_file = Path(os.path.join(dir_, 'data', 'sample-write.txt'))
     try:
-        output_file = Path(os.path.join(dir_, 'data', 'sample-write.txt'))
         output_file.touch()
         task_write = event_loop.run_in_executor(None, _write_file, output_file)
 
@@ -97,9 +93,12 @@ async def test_follow(event_loop):
             tailer = Tailer(fh, end=True)
             # close the tailer to terminate the follow() generator
             task_close = event_loop.run_in_executor(None, run_after, 4, tailer.close)
-            async for line in tailer.follow():
-                if len(line) > 0:
-                    assert line == next(sample_lines_iter)
+            _follower = tailer.follow()
+            _lines = [_line async for _line in _follower]
+            assert len(_lines) == 9
+            for _line in _lines:
+                if len(_line) > 0:
+                    assert _line == next(sample_lines_iter)
 
         # confirm the iterater is exausted
         with pytest.raises(StopIteration):

@@ -1,95 +1,94 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from io import TextIOBase
+from typing import TYPE_CHECKING
 
 import janus
 from asyncio_service import AsyncioService
-from asyncio_service.service import now
-from tailer import Tailer as PyTailer
+from tailer import Tailer as BaseTailer   # type: ignore
+
+
+if TYPE_CHECKING:
+    from concurrent.futures import Executor
+    from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
+
+    Number = Union[int, float]
+    QueueValueTypes = Union[str, StopIteration]
+    JanusAsyncQueue = janus._AsyncQueueProxy[QueueValueTypes]
 
 
 logger = logging.getLogger(__name__)
 
 
 class _FollowThread(AsyncioService):
-    threads = list()
-
-    def __init__(self, asynctailer, delay):
-        filename = asynctailer.file.name
+    def __init__(self, asynctailer: Tailer, delay: Number):
+        filename: str = asynctailer.file.name
         super().__init__(name=f'Tailer->FollowThread [file={filename}]')
-        self.queue = janus.Queue()
-        self.asynctailer = asynctailer
-        self.follow_generator = PyTailer.follow(self.asynctailer, delay=delay)
+        self.queue: janus.Queue[QueueValueTypes] = janus.Queue()
+        self._asynctailer: Tailer = asynctailer
+        self._follow_generator: Generator = BaseTailer.follow(self._asynctailer, delay=delay)
 
-    def run(self):
-        """ override AsyncioService.run() as a synchronous method """
-        _FollowThread.threads.append(self)
-        try:
-            while self.running():
-                try:
-                    data = next(self.follow_generator)
-                    self.queue.sync_q.put(data)
-                except (ValueError, StopIteration):
-                    break
-        finally:
-            # warn queue subscriber to stop
+        @self.cleanup
+        def _alert_subscriber(self, **kwargs):
+            """ warn queue subscriber to stop """
             self.queue.sync_q.put(StopIteration)
-            _FollowThread.threads.remove(self)
-
-    async def stop(self):
-        self.asynctailer.close()
-        await super().stop()
-
-    async def run_wrapper(self):
-        self.start_date = now()
-        try:
-            await self.asynctailer.loop.run_in_executor(self.asynctailer.executor, self.run)
-        except Exception as e:
-            logger.exception(e)
-            self.exception = e
-        finally:
-            self.end_date = now()
-            logger.debug(f'closing service: {self.name}')
-            await self.cleanup()
-            logger.debug(f'service has stopped: {self.name}')
-
-            if self in AsyncioService._running_services:
-                AsyncioService._running_services.remove(self)
-            else:
-                logger.warning('this service was not found in AsyncioService._running_services [name={self.name}]')
-
-    async def __aiter__(self):
-        async with self:
-            await self.wait_for_running()
-            while self.running():
-                data = await self.queue.async_q.get()
-                if data is StopIteration:
-                    break
-                else:
-                    yield data
-
-
-class Tailer(PyTailer):
-    def __init__(self, file: TextIOBase, read_size: int = 1024, end: bool = False, executor: ThreadPoolExecutor = None):
-        super().__init__(file, read_size=read_size, end=end)
-        self.executor = executor
-        self.follow_thread = None
 
     @property
-    def loop(self):
-        return asyncio.get_running_loop()
+    def running(self) -> bool:
+        return not self._stop.is_set()
 
-    async def tail(self, lines=10):
-        func = partial(super().tail, lines=lines)
-        return await self.loop.run_in_executor(self.executor, func)
+    async def run(self) -> None:
+        def _sync():
+            while self.running:
+                try:
+                    _data = next(self._follow_generator)
+                    self.queue.sync_q.put(_data)
+                except (ValueError, StopIteration):
+                    break
+        await self._asynctailer._run_in_executor(_sync)
 
-    async def head(self, lines=10):
-        func = partial(super().head, lines=lines)
-        return await self.loop.run_in_executor(self.executor, func)
+    async def stop(self) -> None:
+        self._asynctailer.close()
+        await super().stop()
 
-    async def follow(self, delay=1.0):
+    async def __aiter__(self) -> AsyncGenerator:
+        async with self:
+            while self.running:
+                _data = await self.queue.async_q.get()
+                if _data is StopIteration:
+                    break
+                else:
+                    yield _data
+
+
+class Tailer(BaseTailer):
+    def __init__(
+        self,
+        file: TextIOBase,
+        read_size: int = 1024,
+        end: bool = False,
+        executor: Optional[Executor] = None
+    ):
+        super().__init__(file, read_size=read_size, end=end)
+        self.executor: Optional[Executor] = executor
+        self.follow_thread: Optional[_FollowThread] = None
+
+    async def _run_in_executor(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+        _loop = asyncio.get_running_loop()
+        _func = partial(func, *args, **kwargs)
+        return await _loop.run_in_executor(self.executor, _func)
+
+    async def tail(self, lines: int = 10) -> List[str]:
+        return await self._run_in_executor(super().tail, lines=lines)
+
+    async def head(self, lines: int = 10) -> List[str]:
+        return await self._run_in_executor(super().head, lines=lines)
+
+    async def follow(self, delay: Number = 1.0) -> AsyncGenerator:
         if self.follow_thread is None:
             self.follow_thread = _FollowThread(self, delay=delay)
 
@@ -99,34 +98,23 @@ class Tailer(PyTailer):
         finally:
             self.follow_thread = None
 
-    async def start_follow_thread(self, delay=1.0):
+    async def start_follow_thread(self, delay: Number = 1.0) -> None:
         if self.follow_thread is not None:
             raise RuntimeError('an instance of _FollowThread is already active')
 
         self.follow_thread = _FollowThread(self, delay=delay)
         self.follow_thread.start()
-        await self.follow_thread.wait_for_running()
+        await self.follow_thread.ready()
 
-    async def stop_follow_thread(self):
+    async def stop_follow_thread(self) -> None:
         if self.follow_thread:
-            await self.follow_thread.stop()
+            self.follow_thread.stop()
+            await self.follow_thread.join()
             self.follow_thread = None
 
     @property
-    def follow_queue(self):
+    def follow_queue(self) -> Optional[JanusAsyncQueue]:
         if self.follow_thread:
             return self.follow_thread.queue.async_q
         else:
             return None
-
-    @staticmethod
-    def follow_threads():
-        return _FollowThread.threads
-
-    @staticmethod
-    async def stop_follow_threads():
-        if len(Tailer.follow_threads()) > 0:
-            awaitables = list()
-            for t in Tailer.follow_threads():
-                awaitables.append(t.stop())
-            await asyncio.wait(awaitables)
