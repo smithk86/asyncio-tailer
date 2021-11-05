@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from concurrent.futures import Executor
     from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
 
-    Number = Union[int, float]
     QueueValueTypes = Union[str, StopIteration]
     JanusAsyncQueue = janus._AsyncQueueProxy[QueueValueTypes]
 
@@ -24,13 +23,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _FollowThread(AsyncioService):
-    def __init__(self, asynctailer: Tailer, delay: Number):
-        filename: str = asynctailer.file.name
-        super().__init__(name=f'Tailer->FollowThread [file={filename}]')
+class TailerFollowThread(AsyncioService):
+    def __init__(self, tailer: Tailer, delay: float):
+        super().__init__(name=f'TailerFollowThread [file={tailer.filename}]')
+        self._tailer = tailer
+        self._delay = delay
         self.queue: janus.Queue[QueueValueTypes] = janus.Queue()
-        self._asynctailer: Tailer = asynctailer
-        self._follow_generator: Generator = BaseTailer.follow(self._asynctailer, delay=delay)
 
         @self.cleanup
         def _alert_subscriber(self, **kwargs):
@@ -43,16 +41,17 @@ class _FollowThread(AsyncioService):
 
     async def run(self) -> None:
         def _sync():
+            _follow_generator = self._tailer._base_tailer.follow(self._delay)
             while self.running:
                 try:
-                    _data = next(self._follow_generator)
+                    _data = next(_follow_generator)
                     self.queue.sync_q.put(_data)
-                except (ValueError, StopIteration):
+                except (ValueError, StopIteration) as e:
                     break
-        await self._asynctailer._run_in_executor(_sync)
+        await self._tailer._run_in_executor(_sync)
 
     async def stop(self) -> None:
-        self._asynctailer.close()
+        self._tailer.close()
         await super().stop()
 
     async def __aiter__(self) -> AsyncGenerator:
@@ -65,7 +64,7 @@ class _FollowThread(AsyncioService):
                     yield _data
 
 
-class Tailer(BaseTailer):
+class Tailer:
     def __init__(
         self,
         file: TextIOBase,
@@ -73,9 +72,15 @@ class Tailer(BaseTailer):
         end: bool = False,
         executor: Optional[Executor] = None
     ):
-        super().__init__(file, read_size=read_size, end=end)
+        self._base_tailer: BaseTailer = BaseTailer(file, read_size=read_size, end=end)
         self.executor: Optional[Executor] = executor
-        self.follow_thread: Optional[_FollowThread] = None
+
+    @property
+    def filename(self):
+        return self._base_tailer.file.name
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._base_tailer, name)
 
     async def _run_in_executor(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         _loop = asyncio.get_running_loop()
@@ -83,38 +88,16 @@ class Tailer(BaseTailer):
         return await _loop.run_in_executor(self.executor, _func)
 
     async def tail(self, lines: int = 10) -> List[str]:
-        return await self._run_in_executor(super().tail, lines=lines)
+        return await self._run_in_executor(self._base_tailer.tail, lines=lines)
 
     async def head(self, lines: int = 10) -> List[str]:
-        return await self._run_in_executor(super().head, lines=lines)
+        return await self._run_in_executor(self._base_tailer.head, lines=lines)
 
-    async def follow(self, delay: Number = 1.0) -> AsyncGenerator:
-        if self.follow_thread is None:
-            self.follow_thread = _FollowThread(self, delay=delay)
+    def follow(self, delay: float = 1.0) -> AsyncGenerator:
+        return self.get_follow_thread(delay).__aiter__()
 
-        try:
-            async for line in self.follow_thread:
-                yield line
-        finally:
-            self.follow_thread = None
+    def get_follow_thread(self, delay: float = 1.0) -> TailerFollowThread:
+        return TailerFollowThread(self, delay=delay)
 
-    async def start_follow_thread(self, delay: Number = 1.0) -> None:
-        if self.follow_thread is not None:
-            raise RuntimeError('an instance of _FollowThread is already active')
-
-        self.follow_thread = _FollowThread(self, delay=delay)
-        self.follow_thread.start()
-        await self.follow_thread.ready()
-
-    async def stop_follow_thread(self) -> None:
-        if self.follow_thread:
-            self.follow_thread.stop()
-            await self.follow_thread.join()
-            self.follow_thread = None
-
-    @property
-    def follow_queue(self) -> Optional[JanusAsyncQueue]:
-        if self.follow_thread:
-            return self.follow_thread.queue.async_q
-        else:
-            return None
+    def close(self) -> None:
+        self._base_tailer.close()
