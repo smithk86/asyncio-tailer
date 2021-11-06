@@ -93,6 +93,7 @@ async def test_follow(event_loop):
             tailer = Tailer(fh, end=True)
             # close the tailer to terminate the follow() generator
             task_close = event_loop.run_in_executor(None, run_after, 4, tailer.close)
+
             _lines = [_line async for _line in tailer.follow()]
             assert len(_lines) == 9
             for _line in _lines:
