@@ -1,16 +1,18 @@
+asyncio-generator-converter @ git+https://github.com/smithk86/asyncio-generator-converter.git@24edbafff8cbaadfc1917185fd25cd409428f898
 attrs==21.2.0
-filelock==3.3.2
+filelock==3.4.0
 iniconfig==1.1.1
-janus==0.6.2
-mypy==0.910
+janus==1.0.0
+mypy==0.920
 mypy-extensions==0.4.3
-packaging==21.2
+packaging==21.3
 pluggy==1.0.0
 py==1.11.0
-pyparsing==2.4.7
+pyparsing==3.0.6
 pytest==6.2.5
 pytest-asyncio==0.16.0
 pytest-mypy==0.8.1
 tailer==0.4.1
 toml==0.10.2
-typing-extensions==3.10.0.2
+tomli==2.0.0
+typing_extensions==4.0.1
