@@ -1,0 +1,29 @@
+[tool]
+[tool.poetry]
+name = "asyncio-tailer"
+version = "0.5.0"
+description = "asyncio wrapper for pytailer (https://github.com/six8/pytailer)"
+authors = ["Kyle Smith <smithk86@smc3.com>"]
+license = "MIT"
+repository = "https://github.com/smithk86/asyncio-tailer"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+asyncio-generator-converter = {git = "https://github.com/smithk86/asyncio-generator-converter.git", rev = "0.1.1"}
+tailer = "^0.4.1"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.920"
+pytest = "^6.2"
+pytest-asyncio = "^0.16.0"
+pytest-mypy = "^0.8.1"
+
+[tool.poetry.scripts]
+pytest = "pytest:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--mypy"
