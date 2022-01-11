@@ -1,6 +1,6 @@
 [[package]]
 name = "asyncio-generator-converter"
-version = "0.1.2-dev"
+version = "0.1.2"
 description = "convert a normal generator to an async generator with a decorator"
 category = "main"
 optional = false
@@ -13,8 +13,8 @@ janus = "^1.0.0"
 [package.source]
 type = "git"
 url = "https://github.com/smithk86/asyncio-generator-converter.git"
-reference = "dev"
-resolved_reference = "17434d5f46c0ea23cca6639c6c74f0afb8132d8b"
+reference = "0.1.2"
+resolved_reference = "e38c1008656495aa459ad522aae1983e3a3753b4"
 
 [[package]]
 name = "atomicwrites"
@@ -231,7 +231,7 @@ python-versions = ">=3.6"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "ad01c4f880c9ce363e318104ee00b4aea7ebc03d97ed4aa79e1bcce925b9dd2c"
+content-hash = "084a7911a8171e0b3d9e4f39e7a21c31782dd15e758d838816c7522abc15d449"
 
 [metadata.files]
 asyncio-generator-converter = []

@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "asyncio-tailer"
-version = "0.5.1-dev"
+version = "0.6.0"
 description = "asyncio wrapper for pytailer (https://github.com/six8/pytailer)"
 authors = ["Kyle Smith <smithk86@smc3.com>"]
 license = "MIT"
@@ -10,7 +10,7 @@ repository = "https://github.com/smithk86/asyncio-tailer"
 [tool.poetry.dependencies]
 python = "^3.8"
 tailer = "^0.4.1"
-asyncio-generator-converter = {git = "https://github.com/smithk86/asyncio-generator-converter.git", rev = "dev"}
+asyncio-generator-converter = {git = "https://github.com/smithk86/asyncio-generator-converter.git", rev = "0.1.2"}
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.920"
