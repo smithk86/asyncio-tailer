@@ -21,7 +21,7 @@ class Tailer:
         file: TextIOBase,
         read_size: int = 1024,
         end: bool = False,
-        executor: Optional[Executor] = None
+        executor: Optional[Executor] = None,
     ):
         self._base_tailer: BaseTailer = BaseTailer(file, read_size=read_size, end=end)
         self.executor: Optional[Executor] = executor

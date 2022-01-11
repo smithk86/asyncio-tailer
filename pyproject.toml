@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "asyncio-tailer"
-version = "0.5.0"
+version = "0.5.1-dev"
 description = "asyncio wrapper for pytailer (https://github.com/six8/pytailer)"
 authors = ["Kyle Smith <smithk86@smc3.com>"]
 license = "MIT"
