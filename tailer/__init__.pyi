@@ -3,6 +3,7 @@ from typing import Generator, List, Optional, Tuple
 
 
 class Tailer:
+    file: TextIOBase
     line_terminators: Tuple[str, str, str]
     def __init__(self, file: TextIOBase, read_size: int = 1024, end: bool = False) -> None: ...
     def splitlines(self, data: str) -> List[str]: ...
